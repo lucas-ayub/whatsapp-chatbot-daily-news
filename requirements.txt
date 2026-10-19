@@ -1,6 +1,7 @@
-certifi==2026.7.22
-charset-normalizer==3.5.2
-idna==3.20
-python-dotenv==1.2.4
-requests==2.34.2
-urllib3==2.8.0
+requests>=2.31
+python-dotenv>=1.0
+feedparser>=6.0
+yfinance>=0.2.60
+anthropic>=0.40
+holidays>=0.60
+pytest>=8.0
