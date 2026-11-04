@@ -68,15 +68,18 @@ def parse_events(data: dict, league: str) -> list[Game]:
 @lru_cache(maxsize=4)
 def all_games(d: date) -> tuple[Game, ...]:
     """Games of every configured league from the day before yesterday to tomorrow."""
-    span = f"{(d - timedelta(days=2)):%Y%m%d}-{(d + timedelta(days=1)):%Y%m%d}"
-    games: list[Game] = []
+    days = [d + timedelta(days=i) for i in range(-2, 2)]  # ESPN days are US time, so look around
+    games: dict[tuple, Game] = {}
     for league in config.LEAGUES:
-        try:
-            data = get_json(URL.format(slug=league["slug"]), params={"dates": span, "limit": 300})
-            games += parse_events(data, league["name"])
-        except Exception:
-            log.exception("ESPN failed for %s", league["slug"])
-    return tuple(sorted(games, key=lambda g: g.start))
+        for day in days:
+            try:
+                data = get_json(URL.format(slug=league["slug"]), params={"dates": f"{day:%Y%m%d}"})
+            except Exception as e:
+                log.warning("ESPN failed for %s on %s: %s", league["slug"], day, e)
+                continue
+            for g in parse_events(data, league["name"]):
+                games[(g.league, g.home, g.away, g.start)] = g  # de-duplicate across days
+    return tuple(sorted(games.values(), key=lambda g: g.start))
 
 
 def _by_league(games: list[Game]) -> dict[str, list[Game]]:

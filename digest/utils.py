@@ -20,7 +20,8 @@ def get(url: str, **kwargs) -> requests.Response:
     """GET with a default timeout and User-Agent; raises on HTTP errors."""
     kwargs.setdefault("timeout", TIMEOUT)
     resp = _session.get(url, **kwargs)
-    resp.raise_for_status()
+    if resp.status_code >= 400:
+        raise requests.HTTPError(f"{resp.status_code} for {resp.url}: {resp.text[:300]!r}", response=resp)
     return resp
 
 

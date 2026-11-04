@@ -14,11 +14,11 @@ log = logging.getLogger(__name__)
 AWESOME_URL = "https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,BTC-BRL"
 TROY_OUNCE_GRAMS = 31.1034768
 
-# label, AwesomeAPI key, Yahoo fallback ticker, decimals
+# label, AwesomeAPI key, Yahoo fallback ticker, decimals, Yahoo quote is in USD (convert with BRL=X)
 CURRENCIES = {
-    "USD": ("💵 Dólar Com", "USDBRL", "BRL=X", 2),
-    "EUR": ("💶 Euro", "EURBRL", "EURBRL=X", 2),
-    "BTC": ("🪙 Bitcoin", "BTCBRL", "BTC-BRL", 2),
+    "USD": ("💵 Dólar Com", "USDBRL", "BRL=X", 2, False),
+    "EUR": ("💶 Euro", "EURBRL", "EURBRL=X", 2, False),
+    "BTC": ("🪙 Bitcoin", "BTCBRL", "BTC-USD", 2, True),  # Yahoo has no BTC-BRL
 }
 
 
@@ -51,14 +51,18 @@ def _change(last: float, prev: float) -> float:
 
 
 def currency_line(code: str) -> str | None:
-    label, awesome_key, yahoo_ticker, decimals = CURRENCIES[code]
+    label, awesome_key, yahoo_ticker, decimals, in_usd = CURRENCIES[code]
     try:
         q = awesome_quotes()[awesome_key]
         value, change = float(q["bid"]), float(q["pctChange"])
-    except Exception:
-        log.warning("AwesomeAPI failed for %s, falling back to Yahoo", code, exc_info=True)
+    except Exception as e:
+        log.warning("AwesomeAPI failed for %s (%s), falling back to Yahoo", code, e)
         try:
-            last, prev = yahoo_closes()[yahoo_ticker]
+            closes = yahoo_closes()
+            last, prev = closes[yahoo_ticker]
+            if in_usd:
+                usd_last, usd_prev = closes["BRL=X"]
+                last, prev = last * usd_last, prev * usd_prev
         except Exception:
             log.exception("Yahoo fallback failed for %s", code)
             return None

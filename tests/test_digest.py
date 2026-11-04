@@ -174,3 +174,32 @@ def test_news_fallback_without_ai(monkeypatch):
     assert "• startups headline 1\n🔗 https://example.com/startups/1" in text
     assert news.idea_of_the_day(date(2026, 10, 24)) is None
     news.curated_news.cache_clear()
+
+
+# --- markets / football fallbacks -------------------------------------
+from digest.sections import markets
+
+
+def test_bitcoin_falls_back_to_usd_times_brl(monkeypatch):
+    def down():
+        raise RuntimeError("429")
+    monkeypatch.setattr(markets, "awesome_quotes", down)
+    monkeypatch.setattr(markets, "yahoo_closes",
+                        lambda: {"BTC-USD": (100000.0, 100000.0), "BRL=X": (5.5, 5.0)})
+    assert markets.currency_line("BTC") == "🪙 Bitcoin ⬆️ 10,00% R$ 550.000,00"
+
+
+def test_football_queries_each_day_and_dedups(monkeypatch):
+    calls = []
+
+    def fake_get_json(url, params):
+        calls.append(params)
+        return ESPN  # same two games every day -> must be de-duplicated
+
+    football.all_games.cache_clear()
+    monkeypatch.setattr(football, "get_json", fake_get_json)
+    monkeypatch.setattr(football.config, "LEAGUES", [{"slug": "x", "name": "Copa Sul-Americana"}])
+    games = football.all_games(date(2026, 10, 19))
+    football.all_games.cache_clear()
+    assert [p["dates"] for p in calls] == ["20261017", "20261018", "20261019", "20261020"]
+    assert len(games) == 2
