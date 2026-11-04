@@ -72,7 +72,10 @@ def clean_link(url: str) -> str:
     """Drop tracking parameters (utm_*, etc.) so links stay short."""
     if not url:
         return ""
-    parts = urlsplit(url.strip())
+    url = url.strip()
+    if "/*http" in url:  # Folha wraps links in a redirect: .../rss091/*https://www1.folha...
+        url = url[url.index("/*http") + 2:]
+    parts = urlsplit(url)
     query = [(k, v) for k, v in parse_qsl(parts.query) if not k.lower().startswith(("utm_", "fbclid", "gclid"))]
     return urlunsplit(parts._replace(query=urlencode(query), fragment=""))
 

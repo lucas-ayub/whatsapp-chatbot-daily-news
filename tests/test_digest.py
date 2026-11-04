@@ -203,3 +203,8 @@ def test_football_queries_each_day_and_dedups(monkeypatch):
     football.all_games.cache_clear()
     assert [p["dates"] for p in calls] == ["20261017", "20261018", "20261019", "20261020"]
     assert len(games) == 2
+
+
+def test_clean_link_unwraps_folha_redirect():
+    url = "https://redir.folha.com.br/redir/online/emcimadahora/rss091/*https://www1.folha.uol.com.br/poder/x.shtml"
+    assert news.clean_link(url) == "https://www1.folha.uol.com.br/poder/x.shtml"
