@@ -124,3 +124,53 @@ def test_failing_section_is_skipped(monkeypatch):
     monkeypatch.setattr(main, "SECTIONS", [header.date_header, boom])
     msg = main.build_message(date(2026, 10, 14))
     assert msg == "✅ Dia 14 de Outubro de 2026, Quarta-Feira\n\nBom Dia!!! 😉"
+
+
+# --- news ---------------------------------------------------------------
+from digest import llm
+from digest.sections import news
+
+
+def _fake_candidates():
+    def item(i, cat):
+        return {"title": f"{cat} headline {i}", "summary": "s", "source": "src",
+                "link": f"https://example.com/{cat}/{i}", "ts": 0}
+    return {cat: [item(i, cat) for i in range(1, 4)] for cat in news.config.NEWS_FEEDS}
+
+
+def test_clean_link_drops_tracking():
+    assert news.clean_link("https://x.com/a?id=3&utm_source=rss#top") == "https://x.com/a?id=3"
+
+
+def test_news_links_attached_by_index(monkeypatch):
+    news.curated_news.cache_clear()
+    cands = _fake_candidates()
+    monkeypatch.setattr(news, "fetch_category", lambda urls, _c=iter(cands.values()): next(_c))
+    monkeypatch.setattr(llm, "available", lambda: True)
+    answer = {
+        "startups": [{"n": 2, "titulo": "🚀 Startup X levanta US$ 10 mi", "resumo": "Contexto."},
+                     {"n": 99, "titulo": "índice inválido"}],
+        "geopolitica": [{"n": 1, "titulo": "🌍 Cúpula", "resumo": "Atores."}],
+        "nacionais": [{"n": 3, "titulo": "🇧🇷 Fato", "resumo": "não deve aparecer"}],
+        "ideia_do_dia": {"n": 1, "texto": "Ideia boa."},
+    }
+    monkeypatch.setattr(llm, "ask_json", lambda system, prompt, max_tokens=0: answer)
+    d = date(2026, 10, 24)
+    startups = news.startup_news(d)
+    assert "*🚀 Startup X levanta US$ 10 mi*\nContexto.\n🔗 https://example.com/startups/2" in startups
+    assert "inválido" not in startups
+    assert "🔗 https://example.com/geopolitica/1" in news.geopolitics_news(d)
+    assert news.national_news(d).endswith("🇧🇷 Fato\n🔗 https://example.com/nacionais/3")
+    assert "Ideia boa.\n🔗 https://example.com/startups/1" in news.idea_of_the_day(d)
+    assert news.science_news(d) is None
+    news.curated_news.cache_clear()
+
+
+def test_news_fallback_without_ai(monkeypatch):
+    news.curated_news.cache_clear()
+    monkeypatch.setattr(news, "fetch_category", lambda urls: _fake_candidates()["startups"])
+    monkeypatch.setattr(llm, "available", lambda: False)
+    text = news.startup_news(date(2026, 10, 24))
+    assert "• startups headline 1\n🔗 https://example.com/startups/1" in text
+    assert news.idea_of_the_day(date(2026, 10, 24)) is None
+    news.curated_news.cache_clear()

@@ -14,7 +14,7 @@ every morning at ~08:00 (Germany time), via GitHub Actions.
 | Ibovespa, S&P 500, Dow Jones, Nasdaq, gold | Yahoo Finance (`yfinance`) |
 | IGP-M, INPC, IPCA, Selic, TR | Banco Central (SGS API) |
 | Football results & today's games | ESPN public scoreboard API |
-| National, science/tech and international news | RSS feeds, curated by Claude |
+| National news, geopolitics, tech/startups (+ idea of the day) and science | RSS feeds, curated and summarised by Claude, with links |
 | Historical events | Portuguese Wikipedia, selected by Claude |
 
 Every section is independent: if a source is down, that section is skipped and the
@@ -46,6 +46,14 @@ python -m digest.main --dry-run --date 2026-10-14
 python -m digest.main                           # send it
 pytest                                          # run the tests
 ```
+
+## Activate CallMeBot (one time)
+
+1. Get the bot's current phone number from
+   https://www.callmebot.com/blog/free-api-whatsapp-messages/ (it changes from time to time)
+   and save it in your phone's contacts (any name).
+2. Send it this WhatsApp message: `I allow callmebot to send me messages`
+3. You'll get a reply with your API key (it can take a couple of minutes).
 
 ## Secrets
 

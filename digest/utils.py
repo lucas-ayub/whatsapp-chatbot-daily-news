@@ -8,7 +8,8 @@ MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho",
 WEEKDAYS = ["Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira",
             "Sexta-Feira", "Sábado", "Domingo"]
 
-USER_AGENT = "whatsapp-daily-digest/1.0 (personal project; https://github.com)"
+# Wikimedia rejects generic User-Agents; identify the project with a real URL.
+USER_AGENT = "whatsapp-daily-digest/1.0 (personal project; https://github.com/lucas-ayub/whatsapp-chatbot-daily-news)"
 TIMEOUT = 20
 
 _session = requests.Session()

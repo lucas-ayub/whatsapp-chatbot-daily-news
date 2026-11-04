@@ -50,23 +50,33 @@ NEWS_FEEDS = {
         "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml",
         "https://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml",
     ],
-    "internacionais": [
+    "geopolitica": [
         "https://g1.globo.com/rss/g1/mundo/",
         "https://feeds.bbci.co.uk/portuguese/rss.xml",
-        "https://feeds.folha.uol.com.br/mundo/rss091.xml",
         "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "https://www.theguardian.com/world/rss",
+        "https://www.aljazeera.com/xml/rss/all.xml",
+        "https://rss.dw.com/xml/rss-en-world",
+        "https://foreignpolicy.com/feed/",
     ],
-    "ciencia_tecnologia": [
-        "https://g1.globo.com/rss/g1/tecnologia/",
-        "https://g1.globo.com/rss/g1/ciencia/",
-        "https://rss.tecmundo.com.br/feed",
+    "startups": [
         "https://techcrunch.com/feed/",
+        "https://news.crunchbase.com/feed/",
+        "https://hnrss.org/best",  # Hacker News' best stories: where new ideas show up first
+        "https://www.technologyreview.com/feed/",
         "https://www.theverge.com/rss/index.xml",
+        "https://feeds.arstechnica.com/arstechnica/technology-lab",
+    ],
+    "ciencia": [
+        "https://g1.globo.com/rss/g1/ciencia/",
         "https://feeds.arstechnica.com/arstechnica/science",
+        "https://www.nasa.gov/news-release/feed/",
     ],
 }
 NEWS_MAX_AGE_HOURS = 30
-NEWS_COUNT = {"nacionais": 5, "internacionais": 5, "ciencia_tecnologia": 4}
+NEWS_COUNT = {"nacionais": 4, "geopolitica": 5, "startups": 6, "ciencia": 3}
+NEWS_WITH_SUMMARY = {"geopolitica", "startups"}  # these get a 2-3 sentence summary; all get links
+NEWS_IDEA_OF_THE_DAY = True  # extra "💡 IDEIA DO DIA" block picked from the startup candidates
 
 # --- History ------------------------------------------------------------
 HISTORY_COUNT = 9

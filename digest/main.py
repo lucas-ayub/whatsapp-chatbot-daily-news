@@ -28,8 +28,10 @@ SECTIONS = [
     football.football_results,
     football.football_today,
     news.national_news,
-    news.science_tech_news,
-    news.international_news,
+    news.geopolitics_news,
+    news.startup_news,
+    news.idea_of_the_day,
+    news.science_news,
     history.historical_events,
 ]
 FOOTER = "Bom Dia!!! 😉"
