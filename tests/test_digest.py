@@ -212,3 +212,37 @@ def test_football_queries_each_day_and_dedups(monkeypatch):
 def test_clean_link_unwraps_folha_redirect():
     url = "https://redir.folha.com.br/redir/online/emcimadahora/rss091/*https://www1.folha.uol.com.br/poder/x.shtml"
     assert news.clean_link(url) == "https://www1.folha.uol.com.br/poder/x.shtml"
+
+
+# --- sender: adaptive splitting on 403 ----------------------------------
+import pytest
+
+
+def _fake_callmebot(monkeypatch, max_ok):
+    sent = []
+
+    def fake_send_one(text, phone, apikey, attempts=3):
+        if len(text) > max_ok:
+            raise sender.Forbidden("403")
+        sent.append(text)
+
+    monkeypatch.setattr(sender, "_send_one", fake_send_one)
+    monkeypatch.setattr(sender.time, "sleep", lambda s: None)
+    monkeypatch.setenv("CALLMEBOT_PHONE", "+550000")
+    monkeypatch.setenv("CALLMEBOT_APIKEY", "1")
+    return sent
+
+
+def test_sender_resends_refused_message_in_smaller_pieces(monkeypatch):
+    sent = _fake_callmebot(monkeypatch, max_ok=400)
+    text = "\n\n".join(f"*BLOCO {i}*\n" + "\n".join(f"linha {i}.{j} " + "x" * 40 for j in range(8))
+                       for i in range(6))
+    sender.send_whatsapp(text)
+    assert all(len(m) <= 400 for m in sent)
+    assert "".join(sent).replace("\n", "") == text.replace("\n", "")  # nothing lost, order kept
+
+
+def test_sender_reports_ip_block(monkeypatch):
+    _fake_callmebot(monkeypatch, max_ok=0)  # refuses everything
+    with pytest.raises(sender.Forbidden, match="blocking this IP"):
+        sender.send_whatsapp("x" * 1000)
