@@ -181,6 +181,18 @@ def _send_adaptive(text: str, phone: str, apikey: str) -> int:
     return sent
 
 
+def probe(text: str) -> bool:
+    """Send one text as-is and log whether CallMeBot accepted it (for debugging)."""
+    phone, apikey = os.getenv("CALLMEBOT_PHONE"), os.getenv("CALLMEBOT_APIKEY")
+    try:
+        _send_one(text, phone, apikey, attempts=1)
+        log.warning("PROBE OK      (%d chars) %r", len(text), text)
+        return True
+    except Exception as e:
+        log.warning("PROBE REFUSED (%d chars) %r: %s", len(text), text, str(e)[:80])
+        return False
+
+
 def send_whatsapp(text: str) -> None:
     """Send `text` to your number via CallMeBot. Reads phone and API key from the environment."""
     phone = os.getenv("CALLMEBOT_PHONE")

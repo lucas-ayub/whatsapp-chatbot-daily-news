@@ -21,6 +21,10 @@ on:
         description: "Optional date YYYY-MM-DD (default: today in Brazil)"
         type: string
         required: false
+      probe:
+        description: "Debug: send only this text to WhatsApp (\\n = new line)"
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -74,7 +78,9 @@ jobs:
           SCHEDULE: ${{ github.event.schedule }}
           DRY_RUN: ${{ inputs.dry_run }}
           DIGEST_DATE: ${{ inputs.date }}
+          PROBE: ${{ inputs.probe }}
         run: |
+          if [ -n "$PROBE" ]; then python -m digest.main --probe "$PROBE"; exit $?; fi
           args=(--sent-marker .sent-marker)
           [ -n "$SCHEDULE" ] && args+=(--schedule "$SCHEDULE")
           [ "$DRY_RUN" = "true" ] && args+=(--dry-run)

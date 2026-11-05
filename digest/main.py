@@ -68,10 +68,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--date", type=date.fromisoformat, help="build the digest for YYYY-MM-DD")
     parser.add_argument("--schedule", default="", help="cron string of the scheduled run (set by GitHub Actions)")
     parser.add_argument("--sent-marker", default="", help="file to create after a real send (used by the workflow)")
+    parser.add_argument("--probe", default="", help="send only this text to test CallMeBot (\\n = new line)")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     load_dotenv()
+
+    if args.probe:
+        from digest.sender import probe
+        return 0 if probe(args.probe.replace("\\n", "\n")) else 1
 
     if args.schedule and not should_send_now():
         log.info("Scheduled run '%s' is outside the send window in %s; nothing to do.",
