@@ -110,12 +110,16 @@ def test_split_never_orphans_a_title():
 
 
 def test_schedule_gate():
-    summer = datetime(2026, 7, 1, 6, 10, tzinfo=timezone.utc)
-    winter = datetime(2026, 12, 1, 7, 20, tzinfo=timezone.utc)
-    assert main.should_send_now("55 5 * * *", summer)
-    assert not main.should_send_now("55 6 * * *", summer)
-    assert main.should_send_now("55 6 * * *", winter)
-    assert not main.should_send_now("55 5 * * *", winter)
+    utc = timezone.utc
+    # winter (CET, UTC+1): 05:55 UTC is 06:55 local -> too early; 06:55 UTC sends
+    assert not main.should_send_now(datetime(2026, 12, 1, 5, 55, tzinfo=utc))
+    assert main.should_send_now(datetime(2026, 12, 1, 6, 55, tzinfo=utc))
+    # summer (CEST, UTC+2): 05:55 UTC is 07:55 local -> sends
+    assert main.should_send_now(datetime(2026, 7, 1, 5, 55, tzinfo=utc))
+    # GitHub hours late: still sends (once a day is enforced by the workflow)
+    assert main.should_send_now(datetime(2026, 11, 5, 13, 40, tzinfo=utc))
+    # too late in the evening: skip
+    assert not main.should_send_now(datetime(2026, 11, 5, 21, 30, tzinfo=utc))
 
 
 def test_failing_section_is_skipped(monkeypatch):

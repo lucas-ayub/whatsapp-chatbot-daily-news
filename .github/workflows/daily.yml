@@ -2,10 +2,15 @@ name: Daily digest
 
 on:
   schedule:
-    # GitHub cron is UTC-only: one run per German DST offset. The script sends
-    # only from the run that maps to SEND_LOCAL_TIME (07:55 Berlin).
-    - cron: "55 5 * * *"   # summer (CEST, UTC+2)
-    - cron: "55 6 * * *"   # winter (CET, UTC+1)
+    # GitHub cron is UTC-only, best-effort and often late (sometimes runs are skipped).
+    # So it fires several times each morning; digest.main only sends after 07:55 Berlin
+    # (SEND_LOCAL_TIME), and a daily marker in the Actions cache makes it send once a day.
+    - cron: "55 5 * * *"   # 07:55 in summer (CEST)
+    - cron: "55 6 * * *"   # 07:55 in winter (CET)
+    - cron: "25 7 * * *"   # retries, in case the runs above are dropped
+    - cron: "55 7 * * *"
+    - cron: "55 8 * * *"
+    - cron: "55 10 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -19,7 +24,7 @@ on:
 
 permissions:
   contents: read
-  actions: write  # used by the keep-alive step below
+  actions: write  # keep-alive step and the daily "already sent" cache marker
 
 concurrency:
   group: daily-digest
@@ -37,13 +42,29 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: Today's date (send time zone)
+        id: day
+        run: |
+          echo "date=$(python -c 'from datetime import datetime; from zoneinfo import ZoneInfo; from digest import config; print(datetime.now(ZoneInfo(config.SEND_TZ)).date())')" >> "$GITHUB_OUTPUT"
+
+      - name: Already sent today?
+        id: sent
+        if: github.event_name == 'schedule'
+        uses: actions/cache/restore@v4
+        with:
+          path: .sent-marker
+          key: digest-sent-${{ steps.day.outputs.date }}
+
       - name: Install dependencies
+        if: steps.sent.outputs.cache-hit != 'true'
         run: pip install -r requirements.txt
 
       - name: Run tests
+        if: steps.sent.outputs.cache-hit != 'true'
         run: pytest -q
 
       - name: Build and send digest
+        if: steps.sent.outputs.cache-hit != 'true'
         env:
           CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
           CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
@@ -53,11 +74,18 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
           DIGEST_DATE: ${{ inputs.date }}
         run: |
-          args=()
+          args=(--sent-marker .sent-marker)
           [ -n "$SCHEDULE" ] && args+=(--schedule "$SCHEDULE")
           [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
           [ -n "$DIGEST_DATE" ] && args+=(--date "$DIGEST_DATE")
           python -m digest.main "${args[@]}"
+
+      - name: Remember that today's digest was sent
+        if: hashFiles('.sent-marker') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .sent-marker
+          key: digest-sent-${{ steps.day.outputs.date }}
 
       # GitHub disables scheduled workflows in public repos after 60 days without commits.
       # Re-enabling the workflow through the API resets that timer.

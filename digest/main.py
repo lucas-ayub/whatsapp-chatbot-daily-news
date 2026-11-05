@@ -51,18 +51,15 @@ def build_message(d: date) -> str:
     return "\n\n".join(blocks)
 
 
-def should_send_now(schedule: str, now_utc: datetime | None = None) -> bool:
-    """GitHub Actions only speaks UTC, so the workflow has one cron per DST offset.
+def should_send_now(now_utc: datetime | None = None) -> bool:
+    """For scheduled runs: is it between SEND_LOCAL_TIME and SEND_LATEST_LOCAL_TIME in SEND_TZ?
 
-    Only the run whose *scheduled* time equals SEND_LOCAL_TIME in SEND_TZ sends;
-    the other one exits quietly. Using the scheduled time (not the real start time)
-    makes this immune to GitHub's start delays.
+    GitHub cron is UTC-only, best-effort and often late, so the workflow fires several
+    times each morning. Runs before the send time (e.g. the summer cron in winter) exit;
+    the first one after it sends, and the workflow's daily marker stops the rest.
     """
-    minute, hour = (int(x) for x in schedule.split()[:2])
-    now_utc = now_utc or datetime.now(timezone.utc)
-    scheduled = now_utc.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    local = scheduled.astimezone(ZoneInfo(config.SEND_TZ))
-    return local.strftime("%H:%M") == config.SEND_LOCAL_TIME
+    local = (now_utc or datetime.now(timezone.utc)).astimezone(ZoneInfo(config.SEND_TZ))
+    return config.SEND_LOCAL_TIME <= local.strftime("%H:%M") <= config.SEND_LATEST_LOCAL_TIME
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -70,13 +67,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="print the message instead of sending it")
     parser.add_argument("--date", type=date.fromisoformat, help="build the digest for YYYY-MM-DD")
     parser.add_argument("--schedule", default="", help="cron string of the scheduled run (set by GitHub Actions)")
+    parser.add_argument("--sent-marker", default="", help="file to create after a real send (used by the workflow)")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     load_dotenv()
 
-    if args.schedule and not should_send_now(args.schedule):
-        log.info("Run for cron '%s' is the off-season duplicate; nothing to do.", args.schedule)
+    if args.schedule and not should_send_now():
+        log.info("Scheduled run '%s' is outside the send window in %s; nothing to do.",
+                 args.schedule, config.SEND_TZ)
         return 0
 
     d = args.date or datetime.now(ZoneInfo(config.BR_TZ)).date()
@@ -89,6 +88,9 @@ def main(argv: list[str] | None = None) -> int:
 
     send_whatsapp(message)
     log.info("Digest for %s sent.", d)
+    if args.sent_marker:
+        with open(args.sent_marker, "w") as f:
+            f.write(f"{d}\n")
     return 0
 
 

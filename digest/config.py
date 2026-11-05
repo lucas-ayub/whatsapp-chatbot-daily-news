@@ -7,6 +7,9 @@ BR_TZ = "America/Sao_Paulo"
 # time maps to this local time is the one that sends (handles DST changes).
 SEND_TZ = "Europe/Berlin"
 SEND_LOCAL_TIME = "07:55"  # message lands around 08:00 (Actions starts with a few minutes of delay)
+# GitHub often starts cron runs late or skips them, so the workflow retries through the
+# morning; a scheduled run sends only inside this window (and only once a day, see workflow).
+SEND_LATEST_LOCAL_TIME = "21:00"
 
 # --- Weather ------------------------------------------------------------
 CITIES = [
