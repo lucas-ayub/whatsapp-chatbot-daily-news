@@ -242,10 +242,26 @@ def test_sender_resends_refused_message_in_smaller_pieces(monkeypatch):
     assert "".join(sent).replace("\n", "") == text.replace("\n", "")  # nothing lost, order kept
 
 
-def test_sender_reports_ip_block(monkeypatch):
-    _fake_callmebot(monkeypatch, max_ok=0)  # refuses everything
-    with pytest.raises(sender.Forbidden, match="blocking this IP"):
-        sender.send_whatsapp("x" * 1000)
+def test_sender_reports_block_and_diagnoses(monkeypatch, caplog):
+    sent = []
+
+    def fake_send_one(text, phone, apikey, attempts=3):
+        if "*" in text or len(text) > 150:  # pretend the server refuses asterisks
+            raise sender.Forbidden("403")
+        sent.append(text)
+
+    monkeypatch.setattr(sender, "_send_one", fake_send_one)
+    monkeypatch.setattr(sender.time, "sleep", lambda s: None)
+    monkeypatch.setattr(sender, "_diagnosed", False)
+    monkeypatch.setenv("CALLMEBOT_PHONE", "+550000")
+    monkeypatch.setenv("CALLMEBOT_APIKEY", "1")
+    with pytest.raises(sender.Forbidden, match="DIAGNOSE"):
+        sender.send_whatsapp("⚽ *Champions League*\nLens 1x9 Como")
+    log = caplog.text
+    assert "canary     OK" in log
+    assert "line       REFUSED '⚽ *Champions League*'" in log
+    assert "sem *      OK      '⚽ Champions League'" in log
+    assert "line       OK      'Lens 1x9 Como'" in log
 
 
 def test_sender_treats_rate_limit_page_as_failure(monkeypatch):

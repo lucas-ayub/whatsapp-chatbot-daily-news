@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import time
+import unicodedata
 
 import requests
 
@@ -100,21 +101,72 @@ def _send_one(text: str, phone: str, apikey: str, attempts: int = 3) -> None:
             time.sleep(10 * attempt)
 
 
+def _strip_markup(t: str) -> str:
+    return re.sub(r"[*_~]", "", t)
+
+
+def _strip_emoji(t: str) -> str:
+    return "".join(c for c in t if not (ord(c) > 0xFFFF or unicodedata.category(c) in ("So", "Sk", "Cf")
+                                        or 0xFE00 <= ord(c) <= 0xFE0F))
+
+
+def _ascii(t: str) -> str:
+    return unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode()
+
+
+VARIANTS = [("sem *", _strip_markup), ("sem emoji", _strip_emoji), ("so ASCII", _ascii)]
+_diagnosed = False
+
+
+def _diagnose(text: str, phone: str, apikey: str) -> None:
+    """Find out what CallMeBot refuses, logging it; runs once per process.
+
+    Sends a plain canary, then each line of `text` on its own, then cleaned-up
+    variants of every refused line. Results go to the log (WARNING level).
+    """
+    global _diagnosed
+    if _diagnosed:
+        return
+    _diagnosed = True
+
+    def attempt(label: str, t: str) -> bool:
+        time.sleep(config.SECONDS_BETWEEN_MESSAGES)
+        try:
+            _send_one(t, phone, apikey, attempts=1)
+            log.warning("DIAGNOSE %-10s OK      %r", label, t)
+            return True
+        except Exception as e:
+            log.warning("DIAGNOSE %-10s REFUSED %r (%s)", label, t, str(e)[:60])
+            return False
+
+    if not attempt("canary", "teste de conexao do bot (diagnostico)"):
+        log.warning("DIAGNOSE result: even plain ASCII is refused -> the server blocks this origin")
+        return
+    for line in [l for l in text.split("\n") if l.strip()]:
+        if attempt("line", line):
+            continue
+        for label, fn in VARIANTS:
+            variant = fn(line).strip()
+            if variant and variant != line and attempt(label, variant):
+                break
+    log.warning("DIAGNOSE done")
+
+
 def _send_adaptive(text: str, phone: str, apikey: str) -> int:
     """Send `text`; if CallMeBot refuses it (403), resend it in smaller pieces.
 
-    Returns how many WhatsApp messages were sent. Raises Forbidden if even a short
-    piece is refused, which means the server is blocking this machine, not the text.
+    Returns how many WhatsApp messages were sent. If even a short piece is refused,
+    runs a one-off diagnosis (see _diagnose) and raises Forbidden.
     """
     try:
         _send_one(text, phone, apikey)
         return 1
     except Forbidden:
         if len(text) <= MIN_PIECE_CHARS:
+            _diagnose(text, phone, apikey)
             raise Forbidden(
-                f"CallMeBot refused even a {len(text)}-character message from this machine: "
-                "its server is probably blocking this IP (e.g. GitHub Actions), not the content. "
-                "Set CALLMEBOT_URL to a relay (see README).")
+                f"CallMeBot refused even a {len(text)}-character message; see the DIAGNOSE lines "
+                "above for what it accepts.")
     pieces = split_message(text, max(MIN_PIECE_CHARS, len(text) // 2))
     if len(pieces) < 2:  # can't be split on line boundaries: cut it
         half = len(text) // 2
