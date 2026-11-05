@@ -55,6 +55,16 @@ pytest                                          # run the tests
 2. Send it this WhatsApp message: `I allow callmebot to send me messages`
 3. You'll get a reply with your API key (it can take a couple of minutes).
 
+## CallMeBot relay (only if sending fails with 403)
+
+CallMeBot may refuse requests coming from GitHub Actions' servers. In that case, route them
+through a free Cloudflare Worker:
+
+1. Create a free account at https://dash.cloudflare.com → *Workers & Pages* → *Create* →
+   *Hello World* worker → *Deploy* → *Edit code*.
+2. Replace the code with `relay/callmebot-worker.js` and click *Deploy*.
+3. Add a repository secret `CALLMEBOT_URL` = `https://<your-worker>.workers.dev/whatsapp.php`.
+
 ## Secrets
 
 | Name | What |

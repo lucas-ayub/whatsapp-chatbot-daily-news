@@ -7,9 +7,15 @@ import time
 import requests
 
 from digest import config
+from digest.utils import USER_AGENT
 
 log = logging.getLogger(__name__)
-CALLMEBOT_URL = "https://api.callmebot.com/whatsapp.php"
+DEFAULT_CALLMEBOT_URL = "https://api.callmebot.com/whatsapp.php"
+
+
+def callmebot_url() -> str:
+    """Same API through a relay (e.g. a Cloudflare Worker) if CallMeBot blocks the runner's IP."""
+    return os.getenv("CALLMEBOT_URL") or DEFAULT_CALLMEBOT_URL
 
 
 def split_message(text: str, limit: int) -> list[str]:
@@ -76,8 +82,9 @@ MIN_PIECE_CHARS = 150  # below this, a 403 can't be about message size
 def _send_one(text: str, phone: str, apikey: str, attempts: int = 3) -> None:
     for attempt in range(1, attempts + 1):
         try:
-            resp = requests.get(CALLMEBOT_URL, params={"phone": phone, "text": text, "apikey": apikey},
-                                timeout=60)
+            # Identify the project: CallMeBot's Apache answers 403 to some library User-Agents.
+            resp = requests.get(callmebot_url(), params={"phone": phone, "text": text, "apikey": apikey},
+                                headers={"User-Agent": USER_AGENT}, timeout=60)
             body = " ".join(re.sub(r"<[^>]+>", " ", resp.text).split())
             if resp.status_code == 403:  # retrying the same request won't help
                 raise Forbidden(f"CallMeBot answered 403: {body[:200]}")
@@ -106,7 +113,8 @@ def _send_adaptive(text: str, phone: str, apikey: str) -> int:
         if len(text) <= MIN_PIECE_CHARS:
             raise Forbidden(
                 f"CallMeBot refused even a {len(text)}-character message from this machine: "
-                "its server is probably blocking this IP (e.g. GitHub Actions), not the content.")
+                "its server is probably blocking this IP (e.g. GitHub Actions), not the content. "
+                "Set CALLMEBOT_URL to a relay (see README).")
     pieces = split_message(text, max(MIN_PIECE_CHARS, len(text) // 2))
     if len(pieces) < 2:  # can't be split on line boundaries: cut it
         half = len(text) // 2
