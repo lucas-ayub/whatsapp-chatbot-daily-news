@@ -101,6 +101,16 @@ def _send_one(text: str, phone: str, apikey: str, attempts: int = 3) -> None:
             time.sleep(10 * attempt)
 
 
+ZWSP = "\u200b"  # zero-width space: invisible in WhatsApp
+
+
+def waf_safe(text: str) -> str:
+    """Defuse CallMeBot's web firewall, which answers 403 when a line break (or ; | ` &)
+    is followed by a word that looks like a shell command, e.g. "\\nFC Porto" ("fc" is a
+    shell builtin). An invisible zero-width space before the word avoids the match."""
+    return re.sub(r"([\n;|`&][ \t]*)(?=[A-Za-z])", lambda m: m.group(1) + ZWSP, text)
+
+
 def _strip_markup(t: str) -> str:
     return re.sub(r"[*_~]", "", t)
 
@@ -114,59 +124,48 @@ def _ascii(t: str) -> str:
     return unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode()
 
 
-VARIANTS = [("sem *", _strip_markup), ("sem emoji", _strip_emoji), ("so ASCII", _ascii)]
-_diagnosed = False
+VARIANTS = [("original", lambda t: t), ("sem *", _strip_markup),
+            ("sem emoji", _strip_emoji), ("so ASCII", _ascii)]
 
 
-def _diagnose(text: str, phone: str, apikey: str) -> None:
-    """Find out what CallMeBot refuses, logging it; runs once per process.
-
-    Sends a plain canary, then each line of `text` on its own, then cleaned-up
-    variants of every refused line. Results go to the log (WARNING level).
-    """
-    global _diagnosed
-    if _diagnosed:
-        return
-    _diagnosed = True
-
-    def attempt(label: str, t: str) -> bool:
-        time.sleep(config.SECONDS_BETWEEN_MESSAGES)
-        try:
-            _send_one(t, phone, apikey, attempts=1)
-            log.warning("DIAGNOSE %-10s OK      %r", label, t)
-            return True
-        except Exception as e:
-            log.warning("DIAGNOSE %-10s REFUSED %r (%s)", label, t, str(e)[:60])
-            return False
-
-    if not attempt("canary", "teste de conexao do bot (diagnostico)"):
-        log.warning("DIAGNOSE result: even plain ASCII is refused -> the server blocks this origin")
-        return
+def _send_lines(text: str, phone: str, apikey: str) -> int:
+    """Last resort for a short piece CallMeBot refuses: send it line by line, trying
+    cleaner variants of each line; skip (and log) lines no variant gets through."""
+    sent, skipped = 0, []
     for line in [l for l in text.split("\n") if l.strip()]:
-        if attempt("line", line):
-            continue
         for label, fn in VARIANTS:
-            variant = fn(line).strip()
-            if variant and variant != line and attempt(label, variant):
+            variant = waf_safe(fn(line).strip())
+            if not variant:
+                continue
+            time.sleep(config.SECONDS_BETWEEN_MESSAGES)
+            try:
+                _send_one(variant, phone, apikey, attempts=1)
+                sent += 1
+                if label != "original":
+                    log.warning("Line sent only %s: %r", label, line)
                 break
-    log.warning("DIAGNOSE done")
+            except Forbidden:
+                continue
+        else:
+            skipped.append(line)
+    if skipped:
+        log.warning("CallMeBot refused these lines in every form; skipped: %r", skipped)
+    if not sent:
+        raise Forbidden("CallMeBot refused every line, even cleaned up: the server is probably "
+                        "blocking this origin. Try CALLMEBOT_URL (relay) or another machine.")
+    return sent
 
 
 def _send_adaptive(text: str, phone: str, apikey: str) -> int:
-    """Send `text`; if CallMeBot refuses it (403), resend it in smaller pieces.
-
-    Returns how many WhatsApp messages were sent. If even a short piece is refused,
-    runs a one-off diagnosis (see _diagnose) and raises Forbidden.
-    """
+    """Send `text`; if CallMeBot refuses it (403), resend it in smaller pieces, and
+    finally line by line (see _send_lines). Returns how many messages were sent."""
     try:
         _send_one(text, phone, apikey)
         return 1
     except Forbidden:
         if len(text) <= MIN_PIECE_CHARS:
-            _diagnose(text, phone, apikey)
-            raise Forbidden(
-                f"CallMeBot refused even a {len(text)}-character message; see the DIAGNOSE lines "
-                "above for what it accepts.")
+            log.warning("CallMeBot refused a %d-char piece; sending it line by line", len(text))
+            return _send_lines(text, phone, apikey)
     pieces = split_message(text, max(MIN_PIECE_CHARS, len(text) // 2))
     if len(pieces) < 2:  # can't be split on line boundaries: cut it
         half = len(text) // 2
@@ -199,7 +198,7 @@ def send_whatsapp(text: str) -> None:
     apikey = os.getenv("CALLMEBOT_APIKEY")
     if not phone or not apikey:
         raise RuntimeError("Set CALLMEBOT_PHONE and CALLMEBOT_APIKEY (in .env or GitHub Secrets).")
-    chunks = split_message(text, config.MAX_CHARS_PER_MESSAGE)
+    chunks = [waf_safe(c) for c in split_message(text, config.MAX_CHARS_PER_MESSAGE)]
     for i, chunk in enumerate(chunks, 1):
         n = _send_adaptive(chunk, phone, apikey)
         log.info("Sent part %d/%d (%d chars, %d message(s))", i, len(chunks), len(chunk), n)

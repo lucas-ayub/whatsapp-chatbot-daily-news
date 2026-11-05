@@ -239,29 +239,39 @@ def test_sender_resends_refused_message_in_smaller_pieces(monkeypatch):
                        for i in range(6))
     sender.send_whatsapp(text)
     assert all(len(m) <= 400 for m in sent)
-    assert "".join(sent).replace("\n", "") == text.replace("\n", "")  # nothing lost, order kept
+    got = "".join(sent).replace("\n", "").replace(sender.ZWSP, "")
+    assert got == text.replace("\n", "")  # nothing lost, order kept
 
 
-def test_sender_reports_block_and_diagnoses(monkeypatch, caplog):
+def test_waf_safe_inserts_invisible_space_before_command_like_words():
+    z = sender.ZWSP
+    assert sender.waf_safe("x\nFC Porto") == f"x\n{z}FC Porto"
+    assert sender.waf_safe("a; at night") == f"a; {z}at night"
+    assert sender.waf_safe("x\n⚽ *Liga*\n🔗 https://a.b") == "x\n⚽ *Liga*\n🔗 https://a.b"
+    assert sender.waf_safe("x\n\n*TITLE*") == "x\n\n*TITLE*"
+
+
+def test_sender_falls_back_line_by_line_and_skips_refused(monkeypatch, caplog):
     sent = []
 
     def fake_send_one(text, phone, apikey, attempts=3):
-        if "*" in text or len(text) > 150:  # pretend the server refuses asterisks
+        if len(text) > 150 or "*" in text or "BAD" in text:  # refuses asterisks and "BAD"
             raise sender.Forbidden("403")
         sent.append(text)
 
     monkeypatch.setattr(sender, "_send_one", fake_send_one)
     monkeypatch.setattr(sender.time, "sleep", lambda s: None)
-    monkeypatch.setattr(sender, "_diagnosed", False)
     monkeypatch.setenv("CALLMEBOT_PHONE", "+550000")
     monkeypatch.setenv("CALLMEBOT_APIKEY", "1")
-    with pytest.raises(sender.Forbidden, match="DIAGNOSE"):
-        sender.send_whatsapp("⚽ *Champions League*\nLens 1x9 Como")
-    log = caplog.text
-    assert "canary     OK" in log
-    assert "line       REFUSED '⚽ *Champions League*'" in log
-    assert "sem *      OK      '⚽ Champions League'" in log
-    assert "line       OK      'Lens 1x9 Como'" in log
+    sender.send_whatsapp("⚽ *Champions League*\nLens 1x9 Como\nBAD line")
+    assert sent == ["⚽ Champions League", f"{sender.ZWSP}Lens 1x9 Como"]
+    assert "skipped: ['\\u200bBAD line']" in caplog.text
+
+
+def test_sender_reports_origin_block(monkeypatch):
+    _fake_callmebot(monkeypatch, max_ok=0)  # refuses everything
+    with pytest.raises(sender.Forbidden, match="blocking this origin"):
+        sender.send_whatsapp("abc\ndef")
 
 
 def test_sender_treats_rate_limit_page_as_failure(monkeypatch):
