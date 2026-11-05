@@ -95,4 +95,4 @@ ANTHROPIC_MODEL = "claude-sonnet-5-5"  # override with ANTHROPIC_MODEL in .env
 
 # --- Sending ------------------------------------------------------------
 MAX_CHARS_PER_MESSAGE = 1500  # long digests are split into several WhatsApp messages
-SECONDS_BETWEEN_MESSAGES = 4
+SECONDS_BETWEEN_MESSAGES = 8  # CallMeBot answers 'Too many requests' when called too often

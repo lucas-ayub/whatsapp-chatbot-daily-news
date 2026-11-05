@@ -246,3 +246,13 @@ def test_sender_reports_ip_block(monkeypatch):
     _fake_callmebot(monkeypatch, max_ok=0)  # refuses everything
     with pytest.raises(sender.Forbidden, match="blocking this IP"):
         sender.send_whatsapp("x" * 1000)
+
+
+def test_sender_treats_rate_limit_page_as_failure(monkeypatch):
+    class Resp:
+        status_code = 200
+        text = "<h1>Oops! Too many requests...</h1>You have called to the API to often."
+    monkeypatch.setattr(sender.requests, "get", lambda *a, **k: Resp())
+    monkeypatch.setattr(sender.time, "sleep", lambda s: None)
+    with pytest.raises(RuntimeError, match="Too many requests"):
+        sender._send_one("oi", "+55", "1")

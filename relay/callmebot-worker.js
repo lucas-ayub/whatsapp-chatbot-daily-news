@@ -11,7 +11,8 @@ export default {
     const upstream = await fetch("https://api.callmebot.com/whatsapp.php" + url.search, {
       headers: { "User-Agent": "whatsapp-daily-digest-relay/1.0" },
     });
-    return new Response(await upstream.text(), {
+    const empty = [101, 204, 205, 304].includes(upstream.status); // statuses that can't carry a body
+    return new Response(empty ? null : await upstream.text(), {
       status: upstream.status,
       headers: { "content-type": upstream.headers.get("content-type") || "text/plain" },
     });

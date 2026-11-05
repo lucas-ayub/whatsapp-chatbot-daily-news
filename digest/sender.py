@@ -88,7 +88,7 @@ def _send_one(text: str, phone: str, apikey: str, attempts: int = 3) -> None:
             body = " ".join(re.sub(r"<[^>]+>", " ", resp.text).split())
             if resp.status_code == 403:  # retrying the same request won't help
                 raise Forbidden(f"CallMeBot answered 403: {body[:200]}")
-            if resp.status_code < 400 and not re.search(r"\bERROR\b|invalid|not\s+allowed", body, re.I):
+            if resp.status_code < 400 and not re.search(r"\bERROR\b|invalid|not\s+allowed|too\s+many\s+requests|too\s+often", body, re.I):
                 return
             raise RuntimeError(f"CallMeBot answered {resp.status_code}: {body[:200]}")
         except Forbidden:
