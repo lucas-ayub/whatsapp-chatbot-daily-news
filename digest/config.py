@@ -11,7 +11,6 @@ SEND_LOCAL_TIME = "07:55"  # message lands around 08:00 (Actions starts with a f
 # --- Weather ------------------------------------------------------------
 CITIES = [
     {"name": "São José dos Campos-SP", "lat": -23.1896, "lon": -45.8841},
-    {"name": "Munique", "lat": 48.1374, "lon": 11.5755},
 ]
 
 # --- Markets (Yahoo Finance tickers) ------------------------------------
@@ -60,12 +59,19 @@ NEWS_FEEDS = {
         "https://foreignpolicy.com/feed/",
     ],
     "startups": [
+        # world
         "https://techcrunch.com/feed/",
         "https://news.crunchbase.com/feed/",
         "https://hnrss.org/best",  # Hacker News' best stories: where new ideas show up first
         "https://www.technologyreview.com/feed/",
         "https://www.theverge.com/rss/index.xml",
+        "https://www.wired.com/feed/rss",
+        "https://restofworld.org/feed/latest",  # tech outside the US
         "https://feeds.arstechnica.com/arstechnica/technology-lab",
+        # Brazil
+        "https://g1.globo.com/rss/g1/tecnologia/",
+        "https://startups.com.br/feed/",
+        "https://neofeed.com.br/feed/",
     ],
     "ciencia": [
         "https://g1.globo.com/rss/g1/ciencia/",
@@ -74,7 +80,7 @@ NEWS_FEEDS = {
     ],
 }
 NEWS_MAX_AGE_HOURS = 30
-NEWS_COUNT = {"nacionais": 4, "geopolitica": 5, "startups": 6, "ciencia": 3}
+NEWS_COUNT = {"nacionais": 4, "geopolitica": 5, "startups": 7, "ciencia": 3}
 NEWS_WITH_SUMMARY = {"geopolitica", "startups"}  # these get a 2-3 sentence summary; all get links
 NEWS_IDEA_OF_THE_DAY = True  # extra "💡 IDEIA DO DIA" block picked from the startup candidates
 

@@ -8,13 +8,13 @@ every morning at ~08:00 (Germany time), via GitHub Actions.
 | Section | Source |
 |---|---|
 | Date header | Python (`datetime`) |
-| Commemorative dates & holidays | Portuguese Wikipedia day page + `holidays` (Brazil, Bavaria) |
-| Weather (São José dos Campos, Munich) | Open-Meteo |
+| Commemorative dates & holidays | Portuguese Wikipedia day page + `holidays` (Brazil) |
+| Weather (São José dos Campos) | Open-Meteo |
 | USD, EUR, Bitcoin | AwesomeAPI (Yahoo Finance as fallback) |
 | Ibovespa, S&P 500, Dow Jones, Nasdaq, gold | Yahoo Finance (`yfinance`) |
 | IGP-M, INPC, IPCA, Selic, TR | Banco Central (SGS API) |
 | Football results & today's games | ESPN public scoreboard API |
-| National news, geopolitics, tech/startups (+ idea of the day) and science | RSS feeds, curated and summarised by Claude, with links |
+| National news, geopolitics, tech & startups in Brazil and worldwide (+ idea of the day) and science | RSS feeds, curated and summarised by Claude, with links |
 | Historical events | Portuguese Wikipedia, selected by Claude |
 
 Every section is independent: if a source is down, that section is skipped and the

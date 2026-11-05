@@ -15,9 +15,6 @@ def holiday_lines(d: date) -> list[str]:
     br = holidays.Brazil(years=d.year, language="pt_BR")
     if d in br:
         lines.append(f"🇧🇷 Feriado nacional: {br[d]}")
-    by = holidays.Germany(subdiv="BY", years=d.year)
-    if d in by:
-        lines.append(f"🇩🇪 Feriado na Baviera: {by[d]}")
     return lines
 
 

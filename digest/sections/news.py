@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 TITLES = {
     "nacionais": "🇧🇷📰 *NOTÍCIAS NACIONAIS*",
     "geopolitica": "🌍 *GEOPOLÍTICA E MUNDO*",
-    "startups": "🚀 *TECNOLOGIA, STARTUPS E VALE DO SILÍCIO*",
+    "startups": "🚀 *TECNOLOGIA E STARTUPS*",
     "ciencia": "🔬 *CIÊNCIA E ESPAÇO*",
 }
 IDEA_TITLE = "💡 *IDEIA DO DIA*"
@@ -31,7 +31,7 @@ IDEA_KEY = "ideia_do_dia"
 MAX_CANDIDATES = 45
 
 SYSTEM = """Você é o editor de um resumo diário de notícias enviado por WhatsApp a um leitor brasileiro, \
-engenheiro e pesquisador, que quer ficar por dentro de tecnologia de ponta, startups do Vale do Silício, \
+engenheiro e pesquisador, que quer ficar por dentro de tecnologia em geral, startups do Brasil e do mundo, \
 boas ideias, geopolítica, economia e ciência.
 
 Para cada categoria você recebe candidatas numeradas. Escolha as mais relevantes e devolva, para cada uma:
@@ -45,9 +45,10 @@ Regras:
 - português do Brasil; traduza o que estiver em inglês; tom neutro e factual, sem sensacionalismo;
 - use APENAS informações das manchetes/resumos fornecidos; nunca invente números, nomes ou fatos;
 - não repita a mesma notícia em duas categorias e evite notícias quase iguais;
-- "startups": priorize rodadas de investimento relevantes, lançamentos de produtos e modelos de IA, \
-movimentos estratégicos de big techs, aquisições, IPOs, tecnologias emergentes e ideias novas; evite \
-reviews de gadgets, promoções e listas de compras;
+- "startups": tecnologia e startups em geral, no Brasil e no mundo: rodadas de investimento relevantes, \
+lançamentos de produtos e modelos de IA, movimentos estratégicos de big techs, chips, espaço comercial, \
+aquisições, IPOs, tecnologias emergentes e ideias novas; inclua startups brasileiras ou \
+latino-americanas quando houver algo relevante; evite reviews de gadgets, promoções e listas de compras;
 - "geopolitica": priorize conflitos, diplomacia, eleições, sanções, comércio, energia e a relação entre \
 grandes potências; no resumo, deixe claro quem são os atores e o que está em jogo;
 - nas demais, prefira fatos de impacto a fofocas, crimes locais e curiosidades.
