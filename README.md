@@ -55,6 +55,15 @@ pytest                                          # run the tests
 2. Send it this WhatsApp message: `I allow callmebot to send me messages`
 3. You'll get a reply with your API key (it can take a couple of minutes).
 
+## Punctual daily trigger (Cloudflare Cron)
+
+GitHub's scheduled runs are best-effort and were often hours late or skipped. The Worker in
+`relay/callmebot-worker.js` also has a `scheduled()` handler: Cron Triggers at
+`55 5 * * *`, `55 6 * * *` and `55 7 * * *` (UTC) start this workflow with `scheduled=true`.
+The workflow sends only after 07:55 Berlin and only once a day, so extra triggers are harmless.
+The Worker needs a secret `GITHUB_TOKEN`: a fine-grained token for this repository with
+*Actions: Read and write*.
+
 ## CallMeBot relay (only if sending fails with 403)
 
 CallMeBot may refuse requests coming from GitHub Actions' servers. In that case, route them

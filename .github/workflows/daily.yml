@@ -1,10 +1,12 @@
 name: Daily digest
 
 on:
+  # Two alarm clocks, both "scheduled" runs (send only after 07:55 Berlin, once a day
+  # thanks to the cache marker, so whichever fires first wins):
+  #  1. the Cloudflare Worker's Cron Triggers (relay/callmebot-worker.js), which call
+  #     this workflow with scheduled=true -- punctual, the main one;
+  #  2. GitHub's own cron below -- best-effort and often hours late or skipped, a backup.
   schedule:
-    # GitHub cron is UTC-only, best-effort and often late (sometimes runs are skipped).
-    # So it fires several times each morning; digest.main only sends after 07:55 Berlin
-    # (SEND_LOCAL_TIME), and a daily marker in the Actions cache makes it send once a day.
     - cron: "55 5 * * *"   # 07:55 in summer (CEST)
     - cron: "55 6 * * *"   # 07:55 in winter (CET)
     - cron: "25 7 * * *"   # retries, in case the runs above are dropped
@@ -25,6 +27,10 @@ on:
         description: "Debug: send only this text to WhatsApp (\\n = new line)"
         type: string
         required: false
+      scheduled:
+        description: "Internal: behave like the daily schedule (used by the Cloudflare trigger)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -53,7 +59,7 @@ jobs:
 
       - name: Already sent today?
         id: sent
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || inputs.scheduled
         uses: actions/cache/restore@v4
         with:
           path: .sent-marker
@@ -75,7 +81,7 @@ jobs:
           CALLMEBOT_URL: ${{ secrets.CALLMEBOT_URL }}  # optional relay, see README
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
-          SCHEDULE: ${{ github.event.schedule }}
+          SCHEDULE: ${{ github.event.schedule || (inputs.scheduled && 'cloudflare-cron' || '') }}
           DRY_RUN: ${{ inputs.dry_run }}
           DIGEST_DATE: ${{ inputs.date }}
           PROBE: ${{ inputs.probe }}
@@ -83,7 +89,7 @@ jobs:
           if [ -n "$PROBE" ]; then python -m digest.main --probe "$PROBE"; exit $?; fi
           args=(--sent-marker .sent-marker)
           [ -n "$SCHEDULE" ] && args+=(--schedule "$SCHEDULE")
-          [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
+          [ "$DRY_RUN" = "true" ] && [ -z "$SCHEDULE" ] && args+=(--dry-run)
           [ -n "$DIGEST_DATE" ] && args+=(--date "$DIGEST_DATE")
           python -m digest.main "${args[@]}"
 
@@ -97,7 +103,7 @@ jobs:
       # GitHub disables scheduled workflows in public repos after 60 days without commits.
       # Re-enabling the workflow through the API resets that timer.
       - name: Keep schedule alive
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || inputs.scheduled
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
