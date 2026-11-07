@@ -89,7 +89,13 @@ def _send_one(text: str, phone: str, apikey: str, attempts: int = 3) -> None:
             body = " ".join(re.sub(r"<[^>]+>", " ", resp.text).split())
             if resp.status_code == 403:  # retrying the same request won't help
                 raise Forbidden(f"CallMeBot answered 403: {body[:200]}")
+            if resp.status_code == 204 or not body:
+                # CallMeBot silently drops some requests (e.g. coming through a Cloudflare
+                # Worker) with an empty 204 answer: nothing is delivered, so it's a failure.
+                raise RuntimeError(f"CallMeBot gave an empty answer (HTTP {resp.status_code}); "
+                                   "message not accepted")
             if resp.status_code < 400 and not re.search(r"\bERROR\b|invalid|not\s+allowed|too\s+many\s+requests|too\s+often", body, re.I):
+                log.info("CallMeBot: %s", body[:120])
                 return
             raise RuntimeError(f"CallMeBot answered {resp.status_code}: {body[:200]}")
         except Forbidden:

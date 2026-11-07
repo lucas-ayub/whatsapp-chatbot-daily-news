@@ -282,3 +282,13 @@ def test_sender_treats_rate_limit_page_as_failure(monkeypatch):
     monkeypatch.setattr(sender.time, "sleep", lambda s: None)
     with pytest.raises(RuntimeError, match="Too many requests"):
         sender._send_one("oi", "+55", "1")
+
+
+def test_sender_treats_empty_204_as_failure(monkeypatch):
+    class Resp:
+        status_code = 204
+        text = ""
+    monkeypatch.setattr(sender.requests, "get", lambda *a, **k: Resp())
+    monkeypatch.setattr(sender.time, "sleep", lambda s: None)
+    with pytest.raises(RuntimeError, match="empty answer"):
+        sender._send_one("oi", "+55", "1")

@@ -1,7 +1,7 @@
 // Cloudflare Worker "callmebot-relay": two jobs.
 //
-// 1. fetch(): forwards /whatsapp.php?... to CallMeBot (a relay; optional, set the
-//    CALLMEBOT_URL secret in GitHub to https://<worker>.workers.dev/whatsapp.php).
+// 1. fetch(): forwards /whatsapp.php?... to CallMeBot. NOT USED for sending: CallMeBot
+//    answers requests from Workers with an empty 204 and delivers nothing (see README).
 // 2. scheduled(): the daily alarm clock. GitHub's own cron is often hours late or
 //    skipped, so Cron Triggers on this Worker (55 5 * * *, 55 6 * * *, 55 7 * * * UTC)
 //    start the GitHub workflow with scheduled=true; the workflow itself sends only after

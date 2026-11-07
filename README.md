@@ -64,15 +64,12 @@ The workflow sends only after 07:55 Berlin and only once a day, so extra trigger
 The Worker needs a secret `GITHUB_TOKEN`: a fine-grained token for this repository with
 *Actions: Read and write*.
 
-## CallMeBot relay (only if sending fails with 403)
+## Sending path
 
-CallMeBot may refuse requests coming from GitHub Actions' servers. In that case, route them
-through a free Cloudflare Worker:
-
-1. Create a free account at https://dash.cloudflare.com → *Workers & Pages* → *Create* →
-   *Hello World* worker → *Deploy* → *Edit code*.
-2. Replace the code with `relay/callmebot-worker.js` and click *Deploy*.
-3. Add a repository secret `CALLMEBOT_URL` = `https://<your-worker>.workers.dev/whatsapp.php`.
+Messages go straight from GitHub Actions to CallMeBot. Don't route them through the Cloudflare
+Worker's `/whatsapp.php` relay: CallMeBot answers those requests with an empty HTTP 204 and
+delivers nothing (the sender treats that as a failure). If you ever set the optional
+`CALLMEBOT_URL` secret, keep it as `https://api.callmebot.com/whatsapp.php` or delete it.
 
 ## Secrets
 
