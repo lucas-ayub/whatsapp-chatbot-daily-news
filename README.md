@@ -64,6 +64,12 @@ The workflow sends only after 07:55 Berlin and only once a day, so extra trigger
 The Worker needs a secret `GITHUB_TOKEN`: a fine-grained token for this repository with
 *Actions: Read and write*.
 
+## Delivery by e-mail (default when configured)
+
+If the secrets `GMAIL_ADDRESS` and `GMAIL_APP_PASSWORD` exist, the digest is e-mailed (from that
+address to itself, or to `EMAIL_TO`) instead of sent to WhatsApp. Create the App Password at
+https://myaccount.google.com/apppasswords (needs 2-Step Verification on the Google account).
+
 ## Sending path
 
 Messages go straight from GitHub Actions to CallMeBot. Don't route them through the Cloudflare

@@ -292,3 +292,47 @@ def test_sender_treats_empty_204_as_failure(monkeypatch):
     monkeypatch.setattr(sender.time, "sleep", lambda s: None)
     with pytest.raises(RuntimeError, match="empty answer"):
         sender._send_one("oi", "+55", "1")
+
+
+# --- e-mail -----------------------------------------------------------------
+from digest import email_sender
+
+
+def test_email_html_formatting():
+    h = email_sender.to_html("*TÍTULO*\nA & B <x>\n🔗 https://ex.com/a?b=1")
+    assert "<b>TÍTULO</b>" in h
+    assert "A &amp; B &lt;x&gt;" in h
+    assert '<a href="https://ex.com/a?b=1">https://ex.com/a?b=1</a>' in h
+    assert "<br>" in h
+
+
+def test_send_email_uses_gmail(monkeypatch):
+    sent = {}
+
+    class FakeSMTP:
+        def __init__(self, host, port, context=None, timeout=None):
+            sent["host"] = (host, port)
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def login(self, user, pwd): sent["login"] = (user, pwd)
+        def send_message(self, msg): sent["msg"] = msg
+
+    monkeypatch.setattr(email_sender.smtplib, "SMTP_SSL", FakeSMTP)
+    monkeypatch.setenv("GMAIL_ADDRESS", "eu@gmail.com")
+    monkeypatch.setenv("GMAIL_APP_PASSWORD", "abcd efgh ijkl mnop")
+    monkeypatch.delenv("EMAIL_TO", raising=False)
+    email_sender.send_email("*Oi*\nlinha", date(2026, 11, 9))
+    assert sent["host"] == ("smtp.gmail.com", 465)
+    assert sent["login"] == ("eu@gmail.com", "abcdefghijklmnop")
+    assert sent["msg"]["To"] == "eu@gmail.com"
+    assert "09/11/2026" in sent["msg"]["Subject"]
+
+
+def test_main_prefers_email(monkeypatch):
+    calls = []
+    monkeypatch.setattr(main, "build_message", lambda d: "msg")
+    monkeypatch.setattr(main, "email_configured", lambda: True)
+    monkeypatch.setattr(main, "send_email", lambda text, d: calls.append("email"))
+    monkeypatch.setattr(main, "send_whatsapp", lambda text: calls.append("whatsapp"))
+    assert main.main(["--date", "2026-11-09"]) == 0
+    assert calls == ["email"]

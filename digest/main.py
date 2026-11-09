@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from digest import config
 from digest.sections import commemorative, finance, football, history, news
 from digest.sections.header import date_header
+from digest.email_sender import email_configured, send_email
 from digest.sender import send_whatsapp
 
 log = logging.getLogger("digest")
@@ -91,7 +92,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n--- {len(message)} characters ---", file=sys.stderr)
         return 0
 
-    send_whatsapp(message)
+    if email_configured():
+        send_email(message, d)  # e-mail is the delivery channel when configured
+    else:
+        send_whatsapp(message)
     log.info("Digest for %s sent.", d)
     if args.sent_marker:
         with open(args.sent_marker, "w") as f:
